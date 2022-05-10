@@ -1,5 +1,5 @@
-output "s3_bucket_name" {
-  description = "S3 Bucket Name"
-  value       = aws_s3_bucket.bucket.arn
-  sensitive   = true
+output "db_instance_name" {
+  description = "DB Name"
+  value       = aws_db_instance.default.name
+  sensitive   = false 
 }
