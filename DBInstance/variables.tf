@@ -38,10 +38,20 @@ variable "brp" {
   type        = string
   default     = "5"
 }
-variable "paramGPName" {
-  description = "DB Parameter Group Name"
+variable "family" {
+  description = "RDS DB Instance family name"
   type        = string
-  default     = "MyDBPGName"
+  default     = "postgres14"
+}
+variable "logStatement" {
+  description = "Required log statement type"
+  type        = string
+  default     = "all"
+}
+variable "logMinDurationStatement" {
+  description = "Required tenure for query logs"
+  type        = string
+  default     = "1"
 }
 variable "skip" {
   description = "Skip Final Snapshot"
