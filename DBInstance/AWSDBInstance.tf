@@ -1,6 +1,6 @@
 resource "aws_db_parameter_group" "default" {
  name   = "mydbparmgroup"
- family = var.family
+ family = "postgres14"
   parameter {
 	name  = "log_statement"
 	value = var.logStatement
