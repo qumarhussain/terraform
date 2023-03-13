@@ -28,9 +28,9 @@ resource "aws_iam_policy_attachment" "lambda_policy" {
 }
 
 # Define the Lambda function
-resource "aws_lambda_function" "simple_lambda" {
-  filename      = "simple_lambda.zip"
-  function_name = "simple_lambda"
+resource "aws_lambda_function" "list_hosted_zones_lambda" {
+  filename      = "list_hosted_zones_lambda.zip"
+  function_name = "list_hosted_zones_lambda"
   role          = aws_iam_role.lambda_role.arn
   handler       = "lambda_function.lambda_handler"
   runtime       = "python3.7"
@@ -39,55 +39,53 @@ resource "aws_lambda_function" "simple_lambda" {
   # Define environment variables
   environment {
     variables = {
-      MESSAGE = "Hello, world!"
+      AWS_DEFAULT_REGION = "us-west-2"
     }
   }
 
   # Define the Lambda function code
-  source_code_hash = filebase64sha256("simple_lambda.zip")
+  source_code_hash = filebase64sha256("list_hosted_zones_lambda.zip")
 }
 
 # Create a ZIP archive of the Python code
-data "archive_file" "simple_lambda_zip" {
+data "archive_file" "list_hosted_zones_zip" {
   type        = "zip"
-  output_path = "simple_lambda.zip"
-  source_dir  = "simple_lambda"
+  output_path = "list_hosted_zones_lambda.zip"
+  source_dir  = "list_hosted_zones_lambda"
 }
 
 # Define the Lambda function code
-resource "aws_lambda_function_code" "simple_lambda_code" {
-  function_name = aws_lambda_function.simple_lambda.function_name
-  source_code_hash = data.archive_file.simple_lambda_zip.output_base64sha256
+resource "aws_lambda_function_code" "list_hosted_zones_code" {
+  function_name = aws_lambda_function.list_hosted_zones_lambda.function_name
+  source_code_hash = data.archive_file.list_hosted_zones_zip.output_base64sha256
 }
 
 # Define the Lambda function handler code
-resource "aws_lambda_function" "simple_lambda_handler" {
-  function_name = aws_lambda_function.simple_lambda.function_name
+resource "aws_lambda_function" "list_hosted_zones_handler" {
+  function_name = aws_lambda_function.list_hosted_zones_lambda.function_name
   handler = "lambda_function.lambda_handler"
-  source_code_hash = data.archive_file.simple_lambda_zip.output_base64sha256
+  source_code_hash = data.archive_file.list_hosted_zones_zip.output_base64sha256
 }
 
 # Define the Lambda function role policy
-resource "aws_iam_policy" "lambda_policy" {
-  name = "lambda_policy"
+resource "aws_iam_policy" "list_hosted_zones_policy" {
+  name = "list_hosted_zones_policy"
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
         Effect = "Allow"
         Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
+          "route53:ListHostedZones"
         ]
-        Resource = "arn:aws:logs:*:*:*"
+        Resource = "*"
       }
     ]
   })
 }
 
 # Attach the policy to the Lambda role
-resource "aws_iam_role_policy_attachment" "lambda_policy_attachment" {
-  policy_arn = aws_iam_policy.lambda_policy.arn
+resource "aws_iam_role_policy_attachment" "list_hosted_zones_policy_attachment" {
+  policy_arn = aws_iam_policy.list_hosted_zones_policy.arn
   role       = aws_iam_role.lambda_role.name
 }
