@@ -1,6 +1,11 @@
-# Define AWS provider and region
-provider "aws" {
-  region = "us-west-2"
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+      version = "4.58.0"
+    }
+  }
+  required_version = ">= 1.0.0"
 }
 
 # Create a new IAM role for the Lambda function
@@ -22,7 +27,7 @@ resource "aws_iam_role" "lambda_role" {
 }
 
 # Attach an IAM policy to the Lambda role
-resource "aws_iam_policy_attachment" "lambda_policy" {
+resource "aws_iam_role_policy_attachment" "lambda_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
   role       = aws_iam_role.lambda_role.name
 }
@@ -57,13 +62,6 @@ data "archive_file" "list_hosted_zones_zip" {
 # Define the Lambda function code
 resource "aws_lambda_function_code" "list_hosted_zones_code" {
   function_name = aws_lambda_function.list_hosted_zones_lambda.function_name
-  source_code_hash = data.archive_file.list_hosted_zones_zip.output_base64sha256
-}
-
-# Define the Lambda function handler code
-resource "aws_lambda_function" "list_hosted_zones_handler" {
-  function_name = aws_lambda_function.list_hosted_zones_lambda.function_name
-  handler = "lambda_function.lambda_handler"
   source_code_hash = data.archive_file.list_hosted_zones_zip.output_base64sha256
 }
 
