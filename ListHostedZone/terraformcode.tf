@@ -1,11 +1,23 @@
+# Define AWS provider and region
 terraform {
   required_providers {
     aws = {
-      source = "hashicorp/aws"
-      version = "4.58.0"
+      source  = "hashicorp/aws"
+      version = ">= 3.0"
     }
   }
-  required_version = ">= 1.0.0"
+}
+
+# Create an S3 bucket to hold the Lambda function code
+resource "aws_s3_bucket" "lambda_code_bucket" {
+  bucket = "my-lambda-code-bucket"
+}
+
+# Upload the Lambda function code to the S3 bucket
+resource "aws_s3_bucket_object" "lambda_code_object" {
+  bucket = aws_s3_bucket.lambda_code_bucket.bucket
+  key    = "list_hosted_zones_lambda.zip"
+  source = "list_hosted_zones_lambda.zip"
 }
 
 # Create a new IAM role for the Lambda function
@@ -34,7 +46,6 @@ resource "aws_iam_role_policy_attachment" "lambda_policy" {
 
 # Define the Lambda function
 resource "aws_lambda_function" "list_hosted_zones_lambda" {
-  filename      = "list_hosted_zones_lambda.zip"
   function_name = "list_hosted_zones_lambda"
   role          = aws_iam_role.lambda_role.arn
   handler       = "lambda_function.lambda_handler"
@@ -50,19 +61,8 @@ resource "aws_lambda_function" "list_hosted_zones_lambda" {
 
   # Define the Lambda function code
   source_code_hash = filebase64sha256("list_hosted_zones_lambda.zip")
-}
-
-# Create a ZIP archive of the Python code
-data "archive_file" "list_hosted_zones_zip" {
-  type        = "zip"
-  output_path = "list_hosted_zones_lambda.zip"
-  source_dir  = "list_hosted_zones_lambda"
-}
-
-# Define the Lambda function code
-resource "aws_lambda_function_code" "list_hosted_zones_code" {
-  function_name = aws_lambda_function.list_hosted_zones_lambda.function_name
-  source_code_hash = data.archive_file.list_hosted_zones_zip.output_base64sha256
+  s3_bucket        = aws_s3_bucket.lambda_code_bucket.id
+  s3_key           = aws_s3_bucket_object.lambda_code_object.key
 }
 
 # Define the Lambda function role policy
