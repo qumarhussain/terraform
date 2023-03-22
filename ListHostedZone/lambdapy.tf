@@ -22,20 +22,16 @@ def get_instance_name(instance):
 
 def get_matching_hosted_zones(instance_name):
     """
-    Retrieves all Route 53 private hosted zones containing a specific string in the name.
+    Retrieves all Route 53 hosted zones containing a specific string in the name.
     """
     route53 = boto3.client('route53')
     zones = []
-    response = route53.list_hosted_zones_by_name(DNSName='.', MaxItems='100')
+    response = route53.list_hosted_zones()
     zones.extend(response['HostedZones'])
-    while response.get('NextDNSName'):
-        response = route53.list_hosted_zones_by_name(
-            DNSName=response['NextDNSName'],
-            HostedZoneId=response['NextHostedZoneId'],
-            MaxItems='100'
-        )
+    while response.get('NextMarker'):
+        response = route53.list_hosted_zones(Marker=response['NextMarker'])
         zones.extend(response['HostedZones'])
-    matching_zones = [zone for zone in zones if zone['Config']['PrivateZone'] and instance_name in zone['Name']]
+    matching_zones = [zone for zone in zones if instance_name in zone['Name'] and zone['Config']['PrivateZone']]
     return matching_zones
 
 def get_matching_dns_records(zone_id):
