@@ -34,7 +34,7 @@ def get_matching_hosted_zones(instance_name):
     matching_zones = [zone for zone in zones if instance_name in zone['Name'] and zone['Config']['PrivateZone']]
     return matching_zones
 
-def get_matching_dns_records(zone_id):
+def get_matching_dns_records(instance_name, zone_id):
     """
     Retrieves all DNS record sets of type "A" that match a given hosted zone ID.
     """
@@ -76,7 +76,7 @@ def lambda_handler(event, context):
                 print(f"Hosted Zone: {zone['Name']}")
                 
                 # Find all matching DNS record sets for this zone
-                matching_records = get_matching_dns_records(zone_id)
+                matching_records = get_matching_dns_records(instance_name, zone_id)
                 num_records += len(matching_records)
                 
                 for record in matching_records:
