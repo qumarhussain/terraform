@@ -3,16 +3,17 @@
     "Statement": [
         {
             "Effect": "Allow",
-            "Action": [
-              "ec2:DescribeInstances"
-            ],
+            "Action": "ec2:DescribeInstances",
             "Resource": "*"
         },
         {
             "Effect": "Allow",
             "Action": [
-              "route53:ListHostedZones",
-              "route53:ListResourceRecordSets"
+                "route53:ListHostedZones",
+                "route53:ListResourceRecordSets",
+                "route53:ChangeResourceRecordSets",
+                "route53:GetHostedZone",
+                "route53:GetChange"
             ],
             "Resource": "*"
         }
