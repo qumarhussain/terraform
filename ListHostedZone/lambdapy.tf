@@ -1,8 +1,8 @@
 import boto3
 
-def get_ec2_instances(ec2_name):
+def get_ec2_instances(instance_name):
     ec2 = boto3.client('ec2')
-    filters = [{'Name': 'tag:Name', 'Values': ['*' + ec2_name + '*']}]
+    filters = [{'Name': 'tag:Name', 'Values': ['*' + instance_name + '*']}]
     instances = ec2.describe_instances(Filters=filters)['Reservations']
     return instances
 
@@ -58,12 +58,17 @@ def delete_dns_record(zone_id, record):
     return response
 
 def lambda_handler(event, context):
-    ec2_name = event['ec2_name']
+    org = event['org']
+    app = event['app']
+    env = event.get('env', '')
+    ec2_name = f"{org}-{app}-{env}" if env else f"{org}-{app}"
     instances = get_ec2_instances(ec2_name)
     
     num_instances = len(instances)
     num_zones = 0
     num_records = 0
+    matching_records = []
+    deleted_records = []
     
     for reservation in instances:
         for instance in reservation['Instances']:
@@ -74,11 +79,16 @@ def lambda_handler(event, context):
             
             for zone in matching_zones:
                 zone_id = zone['Id']
-                matching_records = get_matching_dns_records(instance_name, zone_id)
-                num_records += len(matching_records)
+                matching_records_zone = get_matching_dns_records(instance_name, zone_id)
+                num_records += len(matching_records_zone)
+                matching_records.extend(matching_records_zone)
                 
-                for record in matching_records:
+                for record in matching_records_zone:
                     delete_dns_record(zone_id, record)
+                    deleted_records.append(record)
+    
+    print(f"Matching records: {matching_records}")
+    print(f"Deleted records: {deleted_records}")
     
     return {
         'num_instances': num_instances,
