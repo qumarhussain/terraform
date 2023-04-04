@@ -36,7 +36,7 @@ def get_matching_dns_records(instance_name, zone_id):
             StartRecordType=response['NextRecordType']
         )
         records.extend(response['ResourceRecordSets'])
-    matching_records = [record for record in records if record['Type'] == 'A' and record['Name'].startswith(instance_name) and not record.get('AliasTarget', {}).get('DNSName')]
+    matching_records = [record for record in records if record['Type'] == 'A' and not record['Name'].startswith(instance_name) and not record.get('AliasTarget', {}).get('DNSName')]
     return matching_records
 	
 def delete_dns_record(zone_id, record):
