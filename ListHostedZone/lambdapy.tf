@@ -11,18 +11,16 @@ def get_instance_name(instance):
     instance_name = next((tag for tag in instance_tags if tag['Key'] == 'Name'), None)
     if instance_name:
         return instance_name['Value']
-    else:
-        return ''
 
-def get_matching_hosted_zones(instance_name):
+def get_matching_hosted_zones():
     route53 = boto3.client('route53')
     zones = []
-    response = route53.list_hosted_zones()
+    response = route53.list_hosted_zones_by_name()
     zones.extend(response['HostedZones'])
     while response.get('NextMarker'):
-        response = route53.list_hosted_zones(Marker=response['NextMarker'])
+        response = route53.list_hosted_zones_by_name(Marker=response['NextMarker'])
         zones.extend(response['HostedZones'])
-    matching_zones = [zone for zone in zones if instance_name in zone['Name'] and zone['Config']['PrivateZone']]
+    matching_zones = [zone for zone in zones if zone['Config']['PrivateZone']]
     return matching_zones
 
 def get_matching_dns_records(instance_name, zone_id):
@@ -38,24 +36,28 @@ def get_matching_dns_records(instance_name, zone_id):
             StartRecordType=response['NextRecordType']
         )
         records.extend(response['ResourceRecordSets'])
-    matching_records = [record for record in records if record['Type'] == 'A' and not record['Name'].startswith(instance_name) and not record.get('AliasTarget', {}).get('DNSName')]
+    matching_records = [record for record in records if record['Type'] == 'A' and record['Name'].startswith(instance_name) and not record.get('AliasTarget', {}).get('DNSName')]
     return matching_records
-
+	
 def delete_dns_record(zone_id, record):
-    route53 = boto3.client('route53')
-    change_batch = {
-        'Changes': [
-            {
-                'Action': 'DELETE',
-                'ResourceRecordSet': record
-            }
-        ]
-    }
-    response = route53.change_resource_record_sets(
-        HostedZoneId=zone_id,
-        ChangeBatch=change_batch
-    )
-    return response
+    # This code is commented out since deleting records is potentially destructive
+    # and should only be used with caution
+    #
+    # route53 = boto3.client('route53')
+    # change_batch = {
+    #     'Changes': [
+    #         {
+    #             'Action': 'DELETE',
+    #             'ResourceRecordSet': record
+    #         }
+    #     ]
+    # }
+    # response = route53.change_resource_record_sets(
+    #     HostedZoneId=zone_id,
+    #     ChangeBatch=change_batch
+    # )
+    # return response
+    pass
 
 def lambda_handler(event, context):
     org = event['org']
@@ -68,13 +70,12 @@ def lambda_handler(event, context):
     num_zones = 0
     num_records = 0
     matching_records = []
-    deleted_records = []
     
     for reservation in instances:
         for instance in reservation['Instances']:
             instance_name = get_instance_name(instance)
             
-            matching_zones = get_matching_hosted_zones(instance_name)
+            matching_zones = get_matching_hosted_zones()
             num_zones += len(matching_zones)
             
             for zone in matching_zones:
@@ -82,16 +83,15 @@ def lambda_handler(event, context):
                 matching_records_zone = get_matching_dns_records(instance_name, zone_id)
                 num_records += len(matching_records_zone)
                 matching_records.extend(matching_records_zone)
-                
-                for record in matching_records_zone:
-                    delete_dns_record(zone_id, record)
-                    deleted_records.append(record)
+                #for record in matching_records_zone:
+                    #delete_dns_record(zone_id, record)
+                    #deleted_records.append(record)
     
     print(f"Matching records: {matching_records}")
-    print(f"Deleted records: {deleted_records}")
-    
+    #print(f"Deleted records: {deleted_records}")				
+                
     return {
         'num_instances': num_instances,
         'num_zones': num_zones,
-        'num_records_deleted': num_records
+        #'num_records_deleted': num_records
     }
