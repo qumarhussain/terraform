@@ -23,7 +23,7 @@ def get_matching_hosted_zones():
     matching_zones = [zone for zone in zones if zone['Config']['PrivateZone']]
     return matching_zones
 
-def get_matching_dns_records(instance_name, zone_id):
+def get_matching_dns_records(instance_name, zone_id, ec2_name):
     route53 = boto3.client('route53')
     records = []
     response = route53.list_resource_record_sets(HostedZoneId=zone_id, MaxItems='500')
@@ -36,28 +36,24 @@ def get_matching_dns_records(instance_name, zone_id):
             StartRecordType=response['NextRecordType']
         )
         records.extend(response['ResourceRecordSets'])
-    matching_records = [record for record in records if record['Type'] == 'A' and not record['Name'].startswith(instance_name) and not record.get('AliasTarget', {}).get('DNSName')]
+    matching_records = [record for record in records if record['Type'] == 'A' and not record['Name'].startswith(instance_name) and record['Name'].startswith(ec2_name) and not record.get('AliasTarget', {}).get('DNSName') and ec2_name not in record['ResourceRecords'][0]['Value']]
     return matching_records
-	
+
 def delete_dns_record(zone_id, record):
-    # This code is commented out since deleting records is potentially destructive
-    # and should only be used with caution
-    #
-    # route53 = boto3.client('route53')
-    # change_batch = {
-    #     'Changes': [
-    #         {
-    #             'Action': 'DELETE',
-    #             'ResourceRecordSet': record
-    #         }
-    #     ]
-    # }
-    # response = route53.change_resource_record_sets(
-    #     HostedZoneId=zone_id,
-    #     ChangeBatch=change_batch
-    # )
-    # return response
-    pass
+    route53 = boto3.client('route53')
+    change_batch = {
+        'Changes': [
+            {
+                'Action': 'DELETE',
+                'ResourceRecordSet': record
+            }
+        ]
+    }
+    response = route53.change_resource_record_sets(
+        HostedZoneId=zone_id,
+        ChangeBatch=change_batch
+    )
+    return response
 
 def lambda_handler(event, context):
     org = event['org']
@@ -70,6 +66,7 @@ def lambda_handler(event, context):
     num_zones = 0
     num_records = 0
     matching_records = []
+    deleted_records = []
     
     for reservation in instances:
         for instance in reservation['Instances']:
@@ -80,15 +77,15 @@ def lambda_handler(event, context):
             
             for zone in matching_zones:
                 zone_id = zone['Id']
-                matching_records_zone = get_matching_dns_records(instance_name, zone_id)
+                matching_records_zone = get_matching_dns_records(instance_name, zone_id, ec2_name)
                 num_records += len(matching_records_zone)
                 matching_records.extend(matching_records_zone)
-                #for record in matching_records_zone:
-                    #delete_dns_record(zone_id, record)
-                    #deleted_records.append(record)
+                for record in matching_records_zone:
+                    delete_dns_record(zone_id, record)
+                    deleted_records.append(record)
     
     print(f"Matching records: {matching_records}")
-    #print(f"Deleted records: {deleted_records}")				
+    print(f"Deleted records: {deleted_records}")				
                 
     return {
         'num_instances': num_instances,
