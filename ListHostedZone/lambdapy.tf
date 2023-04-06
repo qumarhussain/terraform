@@ -59,7 +59,7 @@ def lambda_handler(event, context):
     org = event['org']
     app = event['app']
     env = event.get('env', '')
-    ec2_name = f"{org}-{app}-{env}" if env else f"{org}-{app}"
+    ec2_name = f"{org}-{env}-{app}" if env else f"{org}-{app}"
     instances = get_ec2_instances(ec2_name)
     
     num_instances = len(instances)
