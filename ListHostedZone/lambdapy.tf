@@ -2,7 +2,7 @@ import boto3
 
 def get_ec2_instances(instance_name):
     ec2 = boto3.client('ec2')
-    filters = [{'Name': 'tag:Name', 'Values': ['*' + instance_name + '*']}]
+    filters = [{'Name': 'tag:Name', 'Values': ['*' + instance_name + '*']}, {'Name': 'instance-state-name', 'Values': ['running']}]
     instances = ec2.describe_instances(Filters=filters)['Reservations']
     return instances
 
