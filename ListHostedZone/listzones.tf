@@ -42,7 +42,8 @@ for record in matching_records:
     key = name
     if key in record_groups:
         # Append the value to an existing group
-        record_groups[key]['Value'].append(record['Record']['Value'])
+        record_groups[key]['Record']['ResourceRecords'].append(
+            {'Value': record['Record']['ResourceRecords'][0]['Value']})
     else:
         # Create a new group for this record
         record_groups[key] = {
@@ -51,7 +52,7 @@ for record in matching_records:
                 'Name': name,
                 'Type': record['Record']['Type'],
                 'TTL': record['Record']['TTL'],
-                'Value': [record['Record']['Value']]
+                'ResourceRecords': [{'Value': record['Record']['ResourceRecords'][0]['Value']}]
             }
         }
 
@@ -61,6 +62,7 @@ consolidated_records = [group['Record'] for group in record_groups.values()]
 # Remove old matching records and replace with new consolidated list
 matching_records.clear()
 matching_records.extend(consolidated_records)
+
 
 
 
