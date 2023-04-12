@@ -29,7 +29,9 @@ def lambda_handler(event, context):
 
     instance_names = list(set(instance_names)) # Remove duplicates from instance_names
     num_instances = len(instance_names)
-    matching_records = [r for r in matching_records if r['Record']['Name'] not in instance_names] # Remove matching instance_name from matching_records
+    for i in range(len(matching_records)-1, -1, -1):
+    if matching_records[i]['Record']['Name'].startswith(tuple(instance_names)):
+        matching_records.pop(i)
 
     for record in matching_records:
         zone_id = record['ZoneId']
