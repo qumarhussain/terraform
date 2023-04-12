@@ -33,20 +33,35 @@ def lambda_handler(event, context):
     if matching_records[i]['Record']['Name'].startswith(tuple(instance_names)):
         matching_records.pop(i)
 		
-# Create a dictionary of unique DNS records with their ZoneId
-unique_matching_records = {}
+# Create a dictionary of DNS records grouped by name
+record_groups = {}
 for record in matching_records:
     name = record['Record']['Name']
     if name in instance_names:
         continue
-    if name in unique_matching_records and unique_matching_records[name]['ZoneId'] != record['ZoneId']:
-        # If the record already exists with a different ZoneId, skip it
-        continue
-    unique_matching_records[name] = {'ZoneId': record['ZoneId'], 'Record': record['Record']}
+    key = name
+    if key in record_groups:
+        # Append the value to an existing group
+        record_groups[key]['Value'].append(record['Record']['Value'])
+    else:
+        # Create a new group for this record
+        record_groups[key] = {
+            'ZoneId': record['ZoneId'],
+            'Record': {
+                'Name': name,
+                'Type': record['Record']['Type'],
+                'TTL': record['Record']['TTL'],
+                'Value': [record['Record']['Value']]
+            }
+        }
 
-# Remove old matching records and replace with new unique dictionary values
+# Create a new list of matching records with groups consolidated
+consolidated_records = [group['Record'] for group in record_groups.values()]
+
+# Remove old matching records and replace with new consolidated list
 matching_records.clear()
-matching_records.extend(unique_matching_records.values())
+matching_records.extend(consolidated_records)
+
 
 
     for record in matching_records:
