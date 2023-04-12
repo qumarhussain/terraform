@@ -32,6 +32,22 @@ def lambda_handler(event, context):
     for i in range(len(matching_records)-1, -1, -1):
     if matching_records[i]['Record']['Name'].startswith(tuple(instance_names)):
         matching_records.pop(i)
+		
+# Create a dictionary of unique DNS records with their ZoneId
+unique_matching_records = {}
+for record in matching_records:
+    name = record['Record']['Name']
+    if name in instance_names:
+        continue
+    if name in unique_matching_records and unique_matching_records[name]['ZoneId'] != record['ZoneId']:
+        # If the record already exists with a different ZoneId, skip it
+        continue
+    unique_matching_records[name] = {'ZoneId': record['ZoneId'], 'Record': record['Record']}
+
+# Remove old matching records and replace with new unique dictionary values
+matching_records.clear()
+matching_records.extend(unique_matching_records.values())
+
 
     for record in matching_records:
         zone_id = record['ZoneId']
