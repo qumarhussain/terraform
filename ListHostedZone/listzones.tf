@@ -47,7 +47,7 @@ for record in matching_records:
     else:
         # Create a new group for this record
         record_groups[key] = {
-            'ZoneId': record['ZoneId'],
+            'ZoneId': record.get('ZoneId'),
             'Record': {
                 'Name': name,
                 'Type': record['Record']['Type'],
@@ -57,16 +57,19 @@ for record in matching_records:
         }
 
 # Create a new list of matching records with groups consolidated
-consolidated_records = [{    'ZoneId': record_group['ZoneId'],
-    'Record': record_group['Record']
-} for record_group in record_groups.values()]
+consolidated_records = []
+for record_group in record_groups.values():
+    if 'ZoneId' in record_group:
+        consolidated_records.append({
+            'ZoneId': record_group['ZoneId'],
+            'Record': record_group['Record']
+        })
+    else:
+        consolidated_records.append({'Record': record_group['Record']})
 
 # Replace old matching records with new unique list
 matching_records.clear()
 matching_records.extend(consolidated_records)
-
-
-
 
 
     for record in matching_records:
