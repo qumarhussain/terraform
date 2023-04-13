@@ -57,11 +57,14 @@ for record in matching_records:
         }
 
 # Create a new list of matching records with groups consolidated
-consolidated_records = [group['Record'] for group in record_groups.values()]
+consolidated_records = [{    'ZoneId': record_group['ZoneId'],
+    'Record': record_group['Record']
+} for record_group in record_groups.values()]
 
-# Remove old matching records and replace with new consolidated list
+# Replace old matching records with new unique list
 matching_records.clear()
 matching_records.extend(consolidated_records)
+
 
 
 
