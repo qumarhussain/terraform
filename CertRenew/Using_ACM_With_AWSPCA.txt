@@ -1,0 +1,61 @@
+Renewable Certificate using ACM PCA
+
+This guide provides a step-by-step process for creating a renewable certificate using AWS ACM PCA (Private Certificate Authority). Please note that this is a guideline, and you will need to adapt the steps to automate them according to your specific setup.
+
+Create Renewable Certificate:
+To create the renewable certificate, use the following Terraform code example:
+
+resource "aws_acm_certificate" "example_certificate" {
+  domain_name             = "example.com"  # Replace with your domain name
+  validation_method       = "DNS"
+  certificate_authority_arn = "<Certificate Authority ARN: AWS ACM PCA ARN>"  # Replace with the ARN of your ACM PCA certificate authority
+
+  renewal_eligibility {
+    renewal_status = "AUTO_RENEW"
+  }
+
+  options {
+    certificate_transparency_logging_preference = "ENABLED"
+  }
+}
+domain_name: Specify the domain name for which you want to create the certificate.
+validation_method: Set it to "DNS" for DNS validation.
+certificate_authority_arn: Replace <Certificate Authority ARN: AWS ACM PCA ARN> with the ARN of your ACM PCA certificate authority.
+Validate the Certificate in Route 53:
+To validate the certificate in Route 53, use the following Terraform code example:
+
+resource "aws_route53_record" "example_validation" {
+  zone_id = data.aws_route53_zone.example_zone.zone_id
+  name    = aws_acm_certificate.example_certificate.domain_validation_options.0.resource_record_name
+  type    = aws_acm_certificate.example_certificate.domain_validation_options.0.resource_record_type
+  records = [aws_acm_certificate.example_certificate.domain_validation_options.0.resource_record_value]
+  ttl     = 300
+}
+
+resource "aws_acm_certificate_validation" "example_validation" {
+  certificate_arn         = "<Certificate Authority ARN: AWS ACM PCA ARN>"  # Replace with the ARN of your ACM PCA certificate authority
+  validation_record_fqdns = [aws_route53_record.example_validation.fqdn]
+}
+The aws_route53_record resource creates a DNS record in Route 53 for certificate validation.
+The aws_acm_certificate_validation resource performs the certificate validation using the certificate ARN and the validation record FQDN.
+Apply Certificate to ALB:
+To apply the certificate to an ALB (Application Load Balancer) in AWS, use the following Terraform code example:
+
+resource "aws_lb" "example_lb" {
+  name               = "example-lb"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.example_sg.id]
+  subnets            = [aws_subnet.example_subnet.id]
+
+  listener {
+    lb_port           = 443
+    lb_protocol       = "HTTPS"
+    ssl_policy        = "ELBSecurityPolicy-2016-08"
+    certificate_arn   = aws_acm_certificate.example_certificate.arn
+  }
+}
+Modify the attributes according to your requirements, such as name, internal, load_balancer_type, security_groups, subnets, lb_port, lb_protocol, ssl_policy, and certificate_arn.
+Remember to adjust the placeholder values with your own domain name, ACM PCA certificate authority ARN, ALB configurations, and other relevant information specific to your environment.
+
+Once you have completed the steps and adapted the code to your needs, you can apply the Terraform configuration to create the renewable certificate, validate it, and apply it to your ALB.
