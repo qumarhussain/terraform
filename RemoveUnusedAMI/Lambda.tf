@@ -2,13 +2,15 @@ import boto3
 
 def get_ec2_instances(application, environment):
     ec2 = boto3.client('ec2')
-    filters = [{'Name': 'tag:Application', 'Values': [application]}, {'Name': 'tag:Environment', 'Values': [environment]}, {'Name': 'instance-state-name', 'Values': ['running']}]
+    app_env = '*' + application + '-' + environment + '*'
+    filters = [{'Name': 'tag:Name', 'Values': [app_env]}, {'Name': 'instance-state-name', 'Values': ['running']}]
     instances = ec2.describe_instances(Filters=filters)['Reservations']
     return instances
 
 def get_amis(application, environment):
     ec2 = boto3.client('ec2')
-    filters = [{'Name': 'tag:Application', 'Values': [application]}, {'Name': 'tag:Environment', 'Values': [environment]}]
+    app_env = '*' + application + '-' + environment + '*'
+    filters = [{'Name': 'tag:Name', 'Values': [app_env]}]
     amis = ec2.describe_images(Owners=['self'], Filters=filters)['Images']  # Assuming these are custom AMIs owned by your account.
     return amis
 
@@ -24,6 +26,12 @@ def get_amis_of_instances(instances, amis):
                 non_matched_amis.remove(ami)
 
     return matched_amis, non_matched_amis
+
+def delete_amis(amis):
+    ec2 = boto3.client('ec2')
+    for ami in amis:
+        response = ec2.deregister_image(ImageId=ami['ImageId'])
+        print(f"AMI {ami['ImageId']} deregistered.")
 
 def lambda_handler(event, context):
     application = event.get('application')
@@ -46,6 +54,8 @@ def lambda_handler(event, context):
 
         matched_amis, non_matched_amis = get_amis_of_instances(instances, amis)
         print(f"Found {len(matched_amis)} matched AMI(s) and {len(non_matched_amis)} non-matched AMI(s)")
+
+        delete_amis(matched_amis)
 
         return {
             'matched_amis': [ami['ImageId'] for ami in matched_amis],
