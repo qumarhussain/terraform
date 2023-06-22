@@ -10,7 +10,7 @@ def get_ec2_instances(application, environment):
 
 def get_amis(application, environment):
     ec2 = boto3.client('ec2')
-    env_app = '*' + environment + '-' + application + '*'
+    env_app = '*' + application + '-' + environment + '*'
     filters = [{'Name': 'tag:Name', 'Values': [env_app]}]
     amis = ec2.describe_images(Owners=['self'], Filters=filters)['Images']  # Assuming these are custom AMIs owned by your account.
     return amis
@@ -51,15 +51,24 @@ def lambda_handler(event, context):
         instances = []
         for res in instances_info:
             instances.extend(res['Instances'])
-        print(f"Found {len(instances)} instance(s) for environment {environment} and application {application}")
 
         amis = get_amis(application, environment)
+
+        # Check if any instances or AMIs are found
+        if not instances or not amis:
+            return {
+                'error': 'No matching EC2 instances or AMIs found.'
+            }
+
+        print(f"Found {len(instances)} instance(s) for environment {environment} and application {application}")
         print(f"Found {len(amis)} AMI(s) for environment {environment} and application {application}")
 
         matched_amis, non_matched_amis = get_amis_of_instances(instances, amis)
         print(f"Found {len(matched_amis)} matched AMI(s) and {len(non_matched_amis)} non-matched AMI(s)")
 
-        delete_amis(matched_amis)
+        # Only delete AMIs if any matches are found
+        if matched_amis:
+            delete_amis(matched_amis)
 
         return {
             'matched_amis': [ami['ImageId'] for ami in matched_amis],
