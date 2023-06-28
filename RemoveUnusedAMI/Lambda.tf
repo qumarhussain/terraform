@@ -50,6 +50,10 @@ def delete_amis(matched_amis, non_matched_amis):
         if parse(ami['CreationDate']) < latest_matched_ami_date:
             response = ec2.deregister_image(ImageId=ami['ImageId'])
             print(f"AMI {ami['ImageId']} deregistered.")
+        else:
+            # AMI Name can be found in ami['Tags'] which is a list of dictionaries
+            ami_name = next((tag['Value'] for tag in ami['Tags'] if tag['Key'] == 'Name'), ami['ImageId'])
+            print(f"AMI {ami_name} was not deregistered as it was created after the latest matched AMI.")
 
 def lambda_handler(event, context):
     application = event.get('application')
