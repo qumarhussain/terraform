@@ -16,40 +16,50 @@ def get_ec2_instances(application, environment):
 
 def get_amis(application, environment):
     ec2 = boto3.client('ec2')
-    env_app = '*' + application + '-' + environment + '*'
-    filters = [{'Name': 'tag:Name', 'Values': [env_app]}]
+    app_env = '*' + application + '-' + environment + '*'
+    filters = [{'Name': 'tag:Name', 'Values': [app_env]}]
     amis = ec2.describe_images(Owners=['self'], Filters=filters)['Images']  # Assuming these are custom AMIs owned by your account.
 
-    print(f"AMIs for {env_app}: {amis}")
+    print(f"AMIs for {app_env}: {amis}")
     return amis
 
 def get_amis_of_instances(instances, amis):
-    matched_amis = []
-    non_matched_amis = amis.copy()
+    instances_with_amis = []
 
     for instance in instances:
         ami_id = instance['ImageId']
+        matched_amis = []
+        non_matched_amis = amis.copy()
+
         for ami in amis:
             if ami['ImageId'] == ami_id:
                 matched_amis.append(ami)
                 non_matched_amis.remove(ami)
+        
+        sorted_matched_amis = sorted(matched_amis, key=lambda ami: parse(ami['CreationDate']))
+        sorted_non_matched_amis = sorted(non_matched_amis, key=lambda ami: parse(ami['CreationDate']))
 
-    print(f"Matched AMIs: {matched_amis}")
-    print(f"Non-matched AMIs: {non_matched_amis}")
-    return matched_amis, non_matched_amis
+        instances_with_amis.append({
+            'instance': instance,
+            'matched_amis': sorted_matched_amis,
+            'non_matched_amis': sorted_non_matched_amis
+        })
 
-def delete_amis(matched_amis, non_matched_amis):
+    return instances_with_amis
+
+def delete_amis(instances_with_amis):
     ec2 = boto3.client('ec2')
-    # Sort AMIs by creation date
-    sorted_matched_amis = sorted(matched_amis, key=lambda ami: parse(ami['CreationDate']))
-    sorted_non_matched_amis = sorted(non_matched_amis, key=lambda ami: parse(ami['CreationDate']))
-    # Find the creation date of the latest matched AMI
-    latest_matched_ami_date = parse(sorted_matched_amis[-1]['CreationDate'])
-    # Only delete non-matched AMIs that were created before the latest matched AMI
-    for ami in sorted_non_matched_amis:
-        if parse(ami['CreationDate']) < latest_matched_ami_date:
-            response = ec2.deregister_image(ImageId=ami['ImageId'])
-            print(f"AMI {ami['ImageId']} deregistered.")
+
+    for instance_data in instances_with_amis:
+        matched_amis = instance_data['matched_amis']
+        non_matched_amis = instance_data['non_matched_amis']
+
+        if matched_amis and non_matched_amis:
+            latest_matched_ami_date = parse(matched_amis[-1]['CreationDate'])
+            for ami in non_matched_amis:
+                if parse(ami['CreationDate']) < latest_matched_ami_date:
+                    response = ec2.deregister_image(ImageId=ami['ImageId'])
+                    print(f"AMI {ami['ImageId']} deregistered.")
 
 def lambda_handler(event, context):
     application = event.get('application')
@@ -73,12 +83,11 @@ def lambda_handler(event, context):
         print(f"Found {len(instances)} instance(s) for environment {environment} and application {application}")
         print(f"Found {len(amis)} AMI(s) for environment {environment} and application {application}")
 
-        matched_amis, non_matched_amis = get_amis_of_instances(instances, amis)
-        print(f"Found {len(matched_amis)} matched AMI(s) and {len(non_matched_amis)} non-matched AMI(s)")
+        instances_with_amis = get_amis_of_instances(instances, amis)
 
         # Only delete AMIs if there are non-matched ones
-        if non_matched_amis:
-            delete_amis(matched_amis, non_matched_amis)
+        if any([instance_data['non_matched_amis'] for instance_data in instances_with_amis]):
+            delete_amis(instances_with_amis)
             print(f"Deleted older non-matched AMIs.")
         
         return {
