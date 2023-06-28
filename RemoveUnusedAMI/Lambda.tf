@@ -18,7 +18,7 @@ def get_amis(application, environment):
     ec2 = boto3.client('ec2')
     env_app = '*' + application + '-' + environment + '*'
     filters = [{'Name': 'tag:Name', 'Values': [env_app]}]
-    amis = ec2.describe_images(Owners=['self'], Filters=filters)['Images']  # Assuming these are custom AMIs owned by your account.
+    amis = ec2.describe_images(Owners=['self'], Filters=filters)['Images']
 
     print(f"AMIs for {env_app}: {amis}")
     return amis
@@ -43,17 +43,29 @@ def delete_amis(matched_amis, non_matched_amis):
     # Sort AMIs by creation date
     sorted_matched_amis = sorted(matched_amis, key=lambda ami: parse(ami['CreationDate']))
     sorted_non_matched_amis = sorted(non_matched_amis, key=lambda ami: parse(ami['CreationDate']))
-    # Find the creation date of the latest matched AMI
-    latest_matched_ami_date = parse(sorted_matched_amis[-1]['CreationDate'])
-    # Only delete non-matched AMIs that were created before the latest matched AMI
+    # Find the creation date of the oldest matched AMI
+    oldest_matched_ami_date = parse(sorted_matched_amis[0]['CreationDate'])
+    # List to hold snapshots associated with deregistered AMIs
+    snapshot_ids = []
+    # Only delete non-matched AMIs that were created before the oldest matched AMI
     for ami in sorted_non_matched_amis:
-        if parse(ami['CreationDate']) < latest_matched_ami_date:
+        if parse(ami['CreationDate']) < oldest_matched_ami_date:
+            snapshot_ids.extend([block['Ebs']['SnapshotId'] for block in ami['BlockDeviceMappings']])
             response = ec2.deregister_image(ImageId=ami['ImageId'])
             print(f"AMI {ami['ImageId']} deregistered.")
         else:
-            # AMI Name can be found in ami['Tags'] which is a list of dictionaries
             ami_name = next((tag['Value'] for tag in ami['Tags'] if tag['Key'] == 'Name'), ami['ImageId'])
-            print(f"AMI {ami_name} was not deregistered as it was created after the latest matched AMI.")
+            print(f"AMI {ami_name} was not deregistered as it was created after the oldest matched AMI.")
+    return snapshot_ids
+
+def delete_snapshots(snapshot_ids):
+    ec2 = boto3.client('ec2')
+    for snapshot_id in snapshot_ids:
+        try:
+            response = ec2.delete_snapshot(SnapshotId=snapshot_id)
+            print(f"Snapshot {snapshot_id} deleted.")
+        except Exception as e:
+            print(f"Failed to delete snapshot {snapshot_id}: {str(e)}")
 
 def lambda_handler(event, context):
     application = event.get('application')
@@ -68,7 +80,6 @@ def lambda_handler(event, context):
         instances = get_ec2_instances(application, environment)
         amis = get_amis(application, environment)
 
-        # Check if any instances or AMIs are found
         if not instances or not amis:
             return {
                 'error': 'No matching EC2 instances or AMIs found.'
@@ -80,11 +91,15 @@ def lambda_handler(event, context):
         matched_amis, non_matched_amis = get_amis_of_instances(instances, amis)
         print(f"Found {len(matched_amis)} matched AMI(s) and {len(non_matched_amis)} non-matched AMI(s)")
 
-        # Only delete AMIs if there are non-matched ones
         if non_matched_amis:
-            delete_amis(matched_amis, non_matched_amis)
+            snapshot_ids = delete_amis(matched_amis, non_matched_amis)
             print(f"Deleted older non-matched AMIs.")
-        
+            
+            # If there are any associated snapshots, delete them
+            if snapshot_ids:
+                delete_snapshots(snapshot_ids)
+                print("Deleted snapshots associated with deregistered AMIs.")
+
         return {
             'message': 'Completed successfully.'
         }
