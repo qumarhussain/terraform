@@ -5,6 +5,13 @@ resource "aws_lambda_function" "example" {
   handler          = "lambda_function.lambda_handler"
   filename         = "lambda_function.zip"
   source_code_hash = filebase64sha256("lambda_function.zip")
+
+  environment {
+    variables = {
+      DB_INSTANCE_IDENTIFIER = aws_db_instance.example.identifier
+      SECRET_NAME            = aws_secretsmanager_secret.example.name
+    }
+  }
 }
 
 resource "aws_iam_role" "lambda_role" {
@@ -71,50 +78,12 @@ resource "aws_cloudwatch_event_rule" "example" {
   name        = "rds-password-rotation-trigger"
   description = "Trigger for RDS password rotation"
   schedule_expression = "rate(1 day)"
-
-  event_pattern = <<EOF
-{
-  "source": [
-    "aws.secretsmanager"
-  ],
-  "detail-type": [
-    "Secrets Manager Secret Rotation"
-  ],
-  "detail": {
-    "state": [
-      "rotated"
-    ],
-    "secret-id": [
-      "${aws_secretsmanager_secret.example.id}"
-    ],
-    "config": {
-      "DBInstanceIdentifier": [
-        "${aws_db_instance.example.identifier}"
-      ]
-    }
-  }
 }
-EOF
-}
-
 
 resource "aws_cloudwatch_event_target" "lambda_target" {
   rule      = aws_cloudwatch_event_rule.example.name
   target_id = "rds-password-rotation-target"
   arn       = aws_lambda_function.example.arn
-
-  input_transformer {
-    input_paths {
-      dbInstanceIdentifier = "$.detail.config.dbInstanceIdentifier"
-      secretName           = "$.detail.secret-id"
-    }
-    input_template = <<EOF
-{
-  "dBInstanceIdentifier": <dbInstanceIdentifier>,
-  "secretName": <secretName>
-}
-EOF
-  }
 }
 
 resource "aws_secretsmanager_secret" "example" {
