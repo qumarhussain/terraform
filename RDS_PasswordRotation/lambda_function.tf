@@ -1,26 +1,29 @@
 import boto3
+import logging
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 def lambda_handler(event, context):
-    # Retrieve the DB instance identifier and Secret Manager name from the event payload
-    db_instance_identifier = event['dbInstanceIdentifier']
-    secret_name = event['secretName']
+    try:
+        db_instance_identifier = event['dbInstanceIdentifier']
+        secret_name = event['secretName']
 
-    # Create an RDS client
-    rds_client = boto3.client('rds')
+        rds_client = boto3.client('rds')
+        secrets_manager_client = boto3.client('secretsmanager')
 
-    # Retrieve the new password from AWS Secrets Manager
-    secrets_manager_client = boto3.client('secretsmanager')
-    get_secret_response = secrets_manager_client.get_secret_value(
-        SecretId=secret_name
-    )
-    new_password = get_secret_response['SecretString']
+        get_secret_response = secrets_manager_client.get_secret_value(
+            SecretId=secret_name
+        )
+        new_password = get_secret_response['SecretString']
 
-    # Update the RDS instance password
-    response = rds_client.modify_db_instance(
-        DBInstanceIdentifier=db_instance_identifier,
-        MasterUserPassword=new_password,
-        ApplyImmediately=True
-    )
+        response = rds_client.modify_db_instance(
+            DBInstanceIdentifier=db_instance_identifier,
+            MasterUserPassword=new_password,
+            ApplyImmediately=True
+        )
 
-    # Print the response
-    print(response)
+        logger.info(f"Password updated for DB instance {db_instance_identifier}: {response}")
+    except Exception as e:
+        logger.error(f"An error occurred: {str(e)}")
+        raise e
