@@ -40,6 +40,10 @@ resource "aws_iam_policy_attachment" "lambda_policy_attachment" {
   roles      = [aws_iam_role.lambda_role.name]
 }
 
+resource "aws_iam_role_policy_attachment" "lambda_execution_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+  role       = aws_iam_role.lambda_role.name
+}
 resource "aws_iam_policy" "lambda_policy" {
   name        = "rds-password-rotation-lambda-policy"
   description = "Policy for RDS password rotation Lambda"
