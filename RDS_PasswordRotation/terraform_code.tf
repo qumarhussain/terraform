@@ -44,6 +44,13 @@ resource "aws_iam_role_policy_attachment" "lambda_execution_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
   role       = aws_iam_role.lambda_role.name
 }
+
+resource "aws_lambda_permission" "allow_secrets_manager" {
+  statement_id  = "AllowExecutionFromSecretsManager"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.example.function_name
+  principal     = "secretsmanager.amazonaws.com"
+}
 resource "aws_iam_policy" "lambda_policy" {
   name        = "rds-password-rotation-lambda-policy"
   description = "Policy for RDS password rotation Lambda"
