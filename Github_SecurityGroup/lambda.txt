@@ -14,7 +14,7 @@ def update_security_groups(security_group_names, ip_ranges):
     ec2 = boto3.client("ec2")
     
     for group_name in security_group_names:
-        security_groups = ec2.describe_security_groups(GroupNames=[group_name])["SecurityGroups"]
+        security_groups = ec2.describe_security_groups(Filters=[{"Name": "group-name", "Values": [group_name]}])["SecurityGroups"]
         
         if not security_groups:
             logger.error("Security Group '%s' not found", group_name)
@@ -34,6 +34,7 @@ def update_security_groups(security_group_names, ip_ranges):
             ]
         )
         logger.info("GitHub IPs added to Security Group '%s'", group_name)
+
 
 def lambda_handler(event, context):
     try:
