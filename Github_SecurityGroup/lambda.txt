@@ -8,51 +8,62 @@ logger.setLevel(logging.INFO)
 def fetch_github_ips(github_url):
     response = requests.get(github_url)
     data = response.json()
-    return data.get("hooks")
+    return data
 
-def update_security_group(group_name, ip_ranges):
+def update_security_groups(security_group_names, ip_ranges):
     ec2 = boto3.client("ec2")
-    security_groups = ec2.describe_security_groups(GroupNames=[group_name])["SecurityGroups"]
     
-    if not security_groups:
-        logger.error("Security Group '%s' not found", group_name)
-        return
-    
-    security_group_id = security_groups[0]["GroupId"]
-    
-    ec2.authorize_security_group_ingress(
-        GroupId=security_group_id,
-        IpPermissions=[
-            {
-                "IpProtocol": "tcp",
-                "FromPort": 22,
-                "ToPort": 22,
-                "IpRanges": ip_ranges
-            }
-        ]
-    )
+    for group_name in security_group_names:
+        security_groups = ec2.describe_security_groups(GroupNames=[group_name])["SecurityGroups"]
+        
+        if not security_groups:
+            logger.error("Security Group '%s' not found", group_name)
+            continue
+        
+        security_group_id = security_groups[0]["GroupId"]
+        
+        ec2.authorize_security_group_ingress(
+            GroupId=security_group_id,
+            IpPermissions=[
+                {
+                    "IpProtocol": "tcp",
+                    "FromPort": 22,
+                    "ToPort": 22,
+                    "IpRanges": ip_ranges
+                }
+            ]
+        )
+        logger.info("GitHub IPs added to Security Group '%s'", group_name)
 
 def lambda_handler(event, context):
     try:
         github_url = event.get("github_url")
-        security_group_name = event.get("security_group_name")
+        service = event.get("service")
+        security_group_names = event.get("security_group_names")
         
-        if not github_url or not security_group_name:
+        if not github_url or not service or not security_group_names:
             return {
                 "statusCode": 400,
                 "body": "Missing input parameters"
             }
         
-        github_ips = fetch_github_ips(github_url)
+        github_data = fetch_github_ips(github_url)
+        
+        if service not in github_data:
+            logger.info("Service '%s' not found in GitHub data.", service)
+            return {
+                "statusCode": 200,
+                "body": f"Service '{service}' not found in GitHub data."
+            }
+        
+        github_ips = github_data[service]
         ip_ranges = [{"CidrIp": ip} for ip in github_ips]
         
-        update_security_group(security_group_name, ip_ranges)
-        
-        logger.info("GitHub IPs added to Security Group '%s'", security_group_name)
+        update_security_groups(security_group_names, ip_ranges)
         
         return {
             "statusCode": 200,
-            "body": "GitHub IPs added to Security Group"
+            "body": f"GitHub IPs for service '{service}' added to Security Groups"
         }
     except Exception as e:
         logger.error("Error: %s", str(e))
