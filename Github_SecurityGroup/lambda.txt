@@ -5,10 +5,19 @@ import logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-def fetch_github_ips(github_url):
+def fetch_github_ipv4_ips(github_url, service):
     response = requests.get(github_url)
     data = response.json()
-    return data
+
+    # Extract only IPv4 addresses from the specified GitHub service
+    ipv4_ips = data.get(service, {}).get("ip_addresses", [])
+    
+    # Filter out IPv6 addresses
+    ipv4_addresses = [ip for ip in ipv4_ips if ":" not in ip]
+    
+    return ipv4_addresses
+
+
 
 def update_security_groups(security_group_names, ip_ranges):
     ec2 = boto3.client("ec2")
@@ -48,23 +57,22 @@ def lambda_handler(event, context):
                 "body": "Missing input parameters"
             }
         
-        github_data = fetch_github_ips(github_url)
+        github_ipv4_ips = fetch_github_ipv4_ips(github_url, service)
         
-        if service not in github_data:
-            logger.info("Service '%s' not found in GitHub data.", service)
+        if not github_ipv4_ips:
+            logger.info(f"No matching IPv4 GitHub IPs found for the specified service '{service}'.")
             return {
                 "statusCode": 200,
-                "body": f"Service '{service}' not found in GitHub data."
+                "body": f"No matching IPv4 GitHub IPs found for the specified service '{service}'."
             }
         
-        github_ips = github_data[service]
-        ip_ranges = [{"CidrIp": ip} for ip in github_ips]
+        ip_ranges = [{"CidrIp": ip} for ip in github_ipv4_ips]
         
         update_security_groups(security_group_names, ip_ranges)
         
         return {
             "statusCode": 200,
-            "body": f"GitHub IPs for service '{service}' added to Security Groups"
+            "body": f"IPv4 GitHub IPs for service '{service}' added to Security Groups"
         }
     except Exception as e:
         logger.error("Error: %s", str(e))
@@ -72,3 +80,4 @@ def lambda_handler(event, context):
             "statusCode": 500,
             "body": "An error occurred"
         }
+
