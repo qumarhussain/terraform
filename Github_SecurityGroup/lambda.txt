@@ -18,7 +18,6 @@ def fetch_github_ipv4_ips(github_url, service):
     return ipv4_addresses
 
 
-
 def update_security_groups(security_group_names, ip_ranges):
     ec2 = boto3.client("ec2")
     
