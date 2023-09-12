@@ -9,13 +9,18 @@ def fetch_github_ipv4_ips(github_url, service):
     response = requests.get(github_url)
     data = response.json()
 
-    # Extract only IPv4 addresses from the specified GitHub service
-    ipv4_ips = data.get(service, {}).get("ip_addresses", [])
-    
-    # Filter out IPv6 addresses
-    ipv4_addresses = [ip for ip in ipv4_ips if ":" not in ip]
-    
-    return ipv4_addresses
+    # Ensure that the specified GitHub service exists in the data
+    if service in data:
+        # Extract only IPv4 addresses from the specified GitHub service
+        ipv4_ips = data[service].get("ip_addresses", [])
+        
+        # Filter out IPv6 addresses
+        ipv4_addresses = [ip for ip in ipv4_ips if ":" not in ip]
+        
+        return ipv4_addresses
+    else:
+        return []
+
 
 
 def update_security_groups(security_group_names, ip_ranges):
