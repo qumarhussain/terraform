@@ -18,6 +18,12 @@ import logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+import json
+import logging
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
 def fetch_github_ipv4_ips(github_url, service):
     response = requests.get(github_url)
     data = response.json()
@@ -26,31 +32,18 @@ def fetch_github_ipv4_ips(github_url, service):
     if service in data:
         github_service_data = data[service]
 
-        # Check if 'ip_addresses' field exists
-        if 'ip_addresses' in github_service_data:
-            ip_addresses = github_service_data['ip_addresses']
-
-            # Check if 'ip_addresses' is a list
-            if isinstance(ip_addresses, list):
-                # Filter out IPv6 addresses
-                ipv4_addresses = [ip for ip in ip_addresses if ':' not in ip]
-                return ipv4_addresses
-            else:
-                logger.error(f"'ip_addresses' is not a list in service '{service}' data.")
+        # Check if 'github_service_data' is a list
+        if isinstance(github_service_data, list):
+            # Filter out IPv6 addresses
+            ipv4_addresses = [ip for ip in github_service_data if ':' not in ip]
+            return ipv4_addresses
         else:
-            logger.error(f"'ip_addresses' not found in service '{service}' data.")
+            logger.error(f"Service '{service}' data is not in the expected format (list of IP addresses).")
     else:
         logger.error(f"Service '{service}' not found in GitHub data.")
     
-    # If 'ip_addresses' or the service is not found, return an empty list
+    # If the service is not found or the data is not in the expected format, return an empty list
     return []
-
-# Usage example:
-github_url = "https://api.github.com/meta"
-service = "packages"  # Replace with the GitHub service you want (e.g., "api", "web")
-ipv4_ips = fetch_github_ipv4_ips(github_url, service)
-logger.info("IPv4 GitHub IPs for '%s': %s", service, ipv4_ips)
-
 
 
 def update_security_groups(security_group_names, ip_ranges):
