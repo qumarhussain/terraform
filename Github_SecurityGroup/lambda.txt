@@ -12,6 +12,12 @@ import logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+import json
+import logging
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
 def fetch_github_ipv4_ips(github_url, service):
     response = requests.get(github_url)
     data = response.json()
@@ -33,9 +39,18 @@ def fetch_github_ipv4_ips(github_url, service):
                 logger.error(f"'ip_addresses' is not a list in service '{service}' data.")
         else:
             logger.error(f"'ip_addresses' not found in service '{service}' data.")
+    else:
+        logger.error(f"Service '{service}' not found in GitHub data.")
     
-    logger.error(f"Service '{service}' not found in GitHub data.")
+    # If 'ip_addresses' or the service is not found, return an empty list
     return []
+
+# Usage example:
+github_url = "https://api.github.com/meta"
+service = "packages"  # Replace with the GitHub service you want (e.g., "api", "web")
+ipv4_ips = fetch_github_ipv4_ips(github_url, service)
+logger.info("IPv4 GitHub IPs for '%s': %s", service, ipv4_ips)
+
 
 
 def update_security_groups(security_group_names, ip_ranges):
