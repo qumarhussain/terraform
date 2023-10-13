@@ -1,25 +1,30 @@
 variable "allowed_aws_account_id" {
   description = "AWS Account ID allowed to create, pull, and push images in the ECR repository"
+  type        = string
 }
 
 variable "untagged_image_expiration_days" {
   description = "Number of days after which untagged images will be expired"
   default     = 7
+  type        = number
 }
 
 variable "tagged_image_count_threshold" {
   description = "Number of tagged images threshold for expiration"
   default     = 5
+  type        = number
 }
 
 variable "tags_to_expire" {
   description = "List of tags used for expiration policy"
   default     = ["old", "deprecated", "stale"]
+  type        = list(string)
 }
 
 variable "scan_on_push" {
   description = "Enable image scanning during push"
   default     = true
+  type        = bool
 }
 
 resource "aws_ecr_repository" "my_repository" {
