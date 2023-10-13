@@ -33,33 +33,12 @@ resource "aws_ecr_repository" "my_repository" {
   image_scanning_configuration {
     scan_on_push = var.scan_on_push
   }
+}
+
+resource "aws_ecr_lifecycle_policy" "my_lifecycle_policy" {
+  repository = aws_ecr_repository.my_repository.name
 
   policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Sid       = "AllowPullPushCreate",
-        Effect    = "Allow",
-        Action    = [
-          "ecr:GetDownloadUrlForLayer",
-          "ecr:BatchGetImage",
-          "ecr:GetAuthorizationToken",
-          "ecr:InitiateLayerUpload",
-          "ecr:UploadLayerPart",
-          "ecr:CompleteLayerUpload",
-          "ecr:PutImage",
-          "ecr:BatchCheckLayerAvailability",
-          "ecr:CreateRepository"
-        ],
-        Resource  = aws_ecr_repository.my_repository.arn,
-        Principal = {
-          AWS = var.allowed_aws_account_id
-        }
-      }
-    ]
-  })
-
-  lifecycle_policy = jsonencode({
     rules = [
       {
         rule_priority = 1,
@@ -85,6 +64,35 @@ resource "aws_ecr_repository" "my_repository" {
         },
         action = {
           type = "expire"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_ecr_repository_policy" "my_repository_policy" {
+  repository = aws_ecr_repository.my_repository.name
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid       = "AllowPullPushCreate",
+        Effect    = "Allow",
+        Action    = [
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+          "ecr:GetAuthorizationToken",
+          "ecr:InitiateLayerUpload",
+          "ecr:UploadLayerPart",
+          "ecr:CompleteLayerUpload",
+          "ecr:PutImage",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:CreateRepository"
+        ],
+        Resource  = aws_ecr_repository.my_repository.arn,
+        Principal = {
+          AWS = var.allowed_aws_account_id
         }
       }
     ]
