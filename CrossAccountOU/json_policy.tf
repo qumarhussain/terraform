@@ -4,9 +4,14 @@
     {
       "Effect": "Allow",
       "Principal": {
-        "AWS": "arn:aws:organizations::<Organization-ID>:<Root-User>"
+        "AWS": "*"
       },
-      "Action": "sts:AssumeRole"
+      "Action": "sts:AssumeRole",
+      "Condition": {
+        "StringEquals": {
+          "aws:PrincipalOrgID": "o-xxxxxxxxxx"
+        }
+      }
     }
   ]
 }
