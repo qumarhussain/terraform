@@ -1,0 +1,21 @@
+jobs:
+  modtesting:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+    
+      #add this step 
+      - name: Check for changes in module
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            module: 
+              - './modules/${{ inputs.directory }}**'
+
+      - name: Run Tests
+        if: steps.changes.outputs.module == 'true' #add this line on line 40
+        run: |
+          cd modules/${{ inputs.directory }}
+          #some more code already in the file
